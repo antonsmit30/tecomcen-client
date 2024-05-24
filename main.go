@@ -26,9 +26,22 @@ func main() {
 	// }
 	// fmt.Println(status)
 
-	go handleReturnMessages(conn)
+	// channel for server messages
+	serverMessages := make(chan string)
 
-	go userInputHandle(conn)
+	go handleReturnMessages(conn, serverMessages)
+
+	// fmt.Println(<-serverMessages)
+
+	fmt.Println("Are you getting here?")
+
+	// setup a writer to stdout
+	// if _, err := bufio.NewWriter(os.Stdout).WriteString(<-serverMessages); err != nil {
+	// 	log.Fatalf("Error: %v", err)
+	// }
+	go handleWritingToOut(serverMessages)
+
+	userInputHandle(conn)
 
 	// defer conn.Close()
 
@@ -53,21 +66,32 @@ func userInputHandle(c net.Conn) {
 
 }
 
-func handleReturnMessages(c net.Conn) {
+func handleReturnMessages(c net.Conn, tunnel chan string) {
 	defer c.Close()
 
 	for {
+
 		// setup reader and return bytes
 		serverResponse, err := bufio.NewReader(c).ReadString('\n')
 		if err != nil {
 			log.Fatalf("Error: %v", err)
 		}
-		// setup a writer to stdout
-		if _, err := bufio.NewWriter(os.Stdout).WriteString(serverResponse); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+
+		// send back to channel
+		tunnel <- serverResponse
+
 		// fmt.Println(serverResponse)
 
 	}
 
+}
+
+func handleWritingToOut(tunnel chan string) {
+	for {
+		select {
+		case msg := <-tunnel:
+			fmt.Println(msg)
+
+		}
+	}
 }
